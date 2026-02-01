@@ -709,13 +709,18 @@ Respond with JSON only:
             if len(self.positions) >= self.max_positions:
                 break
             
-            # AI gate
+            # AI gate - with rate limiting (max 5 per cycle, 1 sec delay)
+            if ai_evaluated >= 5:
+                logger.info(f"Reached AI eval limit, stopping early")
+                break
+            
             ai_evaluated += 1
+            await asyncio.sleep(1.0)  # Rate limit: 1 sec between OpenAI calls
+            
             approved_signal = await self.ai_evaluate(market, signal)
             if approved_signal and self.open_trade(market, approved_signal):
                 opened += 1
-            if opened >= 1:  # Only open 1 per cycle to be conservative
-                break
+                break  # Only open 1 per cycle to be conservative
         
         logger.info(f"Cycle done: {opened} opened, {closed} closed, {ai_evaluated} AI evaluated, {len(self.positions)} positions, ${self.bankroll:.0f} bankroll")
     
