@@ -593,6 +593,46 @@ Respond with JSON only:
         mode = "LIVE" if self.live_trading else "PAPER"
         logger.info(f"[{mode}] CLOSE: {position['side']} @ {exit_price*100:.1f}% - P&L: ${pnl:+.2f} - {reason}")
     
+    def _cancel_stale_orders(self):
+        """Cancel orders that have been pending too long (10+ minutes)."""
+        if not self.live_trading or not self.clob_client:
+            return
+        
+        try:
+            # Get all open orders
+            open_orders = self.clob_client.get_orders()
+            if not open_orders:
+                return
+            
+            now = datetime.now()
+            stale_minutes = 10  # Cancel orders older than 10 minutes
+            cancelled = 0
+            
+            for order in open_orders:
+                # Check if order is old
+                created_at = order.get('createdAt') or order.get('created_at')
+                if not created_at:
+                    continue
+                
+                try:
+                    order_time = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+                    age_minutes = (now - order_time.replace(tzinfo=None)).total_seconds() / 60
+                    
+                    if age_minutes > stale_minutes:
+                        order_id = order.get('orderID') or order.get('id')
+                        if order_id:
+                            self.clob_client.cancel(order_id)
+                            logger.info(f"Cancelled stale order {order_id[:20]}... (age: {age_minutes:.0f} min)")
+                            cancelled += 1
+                except Exception as e:
+                    continue
+            
+            if cancelled > 0:
+                logger.info(f"Cancelled {cancelled} stale orders")
+                
+        except Exception as e:
+            logger.warning(f"Error checking stale orders: {e}")
+    
     def _place_live_sell(self, position: Dict, price: float) -> Optional[str]:
         """Place a live sell order via CLOB API."""
         try:
@@ -625,6 +665,9 @@ Respond with JSON only:
         if not self.check_safety_limits():
             print("Safety limits triggered - skipping cycle", flush=True)
             return
+        
+        # Cancel stale unfilled orders (older than 10 min)
+        self._cancel_stale_orders()
         
         markets = await self.fetch_all_markets()
         print(f"Fetched {len(markets)} markets, checking {len(self.positions)} positions", flush=True)
