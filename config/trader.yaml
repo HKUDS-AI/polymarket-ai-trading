@@ -9,10 +9,11 @@ execution:
   check_interval_seconds: 300  # 5 minutes
 
 risk:
-  kelly_fraction: 0.25         # Use 25% of full Kelly (reduces variance)
-  max_position_usd: 200        # Max $200 per trade
-  max_positions: 15            # Max 15 concurrent positions
-  max_total_exposure_usd: 1500 # Max $1500 total at risk
+  bankroll: 500               # Starting bankroll ($500)
+  kelly_fraction: 0.20        # Use 20% of full Kelly (conservative)
+  max_position_usd: 50        # Max $50 per trade (10% of bankroll)
+  max_positions: 10           # Max 10 concurrent positions
+  max_total_exposure_usd: 400 # Max $400 total at risk (80% of bankroll)
 
 signals:
   mean_reversion:
@@ -22,5 +23,5 @@ signals:
     min_mispricing_pct: 10.0   # Minimum 10% edge to fair value
 
 trading:
-  mode: paper
+  mode: live
   model_name: trader

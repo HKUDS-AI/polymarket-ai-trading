@@ -11,10 +11,27 @@ echo "=================================================="
 # Create necessary directories
 mkdir -p /app/data /app/logs
 
+# Check if we should clear paper trading data
+if [ "$CLEAR_PAPER_DATA" = "true" ]; then
+    echo "Clearing paper trading data..."
+    python3 /app/scripts/clear_paper_trades.py || true
+    echo ""
+fi
+
+# Determine trading mode
+MODE="paper"
+if [ "$LIVE_TRADING" = "true" ]; then
+    MODE="live"
+    echo "*** LIVE TRADING MODE ***"
+else
+    echo "Paper trading mode"
+fi
+echo ""
+
 # Start the trading model
-echo "Starting trader..."
+echo "Starting trader in $MODE mode..."
 python3 /app/agents/systematic_trader.py \
-    --mode paper \
+    --mode $MODE \
     --config /app/config/trader.yaml \
     --model trader \
     >> /app/logs/trader.log 2>&1 &
@@ -25,9 +42,10 @@ echo "Trader started with PID $TRADER_PID"
 
 sleep 2
 
-# Write marker file
+# Write marker file with mode
 echo "$(date)" > /app/data/model_pids.txt
 echo "trader=$TRADER_PID" >> /app/data/model_pids.txt
+echo "mode=$MODE" >> /app/data/model_pids.txt
 
 echo ""
 echo "Starting Dashboard API..."
@@ -53,7 +71,7 @@ while true; do
     if ! kill -0 "$TRADER_PID" 2>/dev/null; then
         echo "[$(date)] Trader crashed, restarting..."
         python3 /app/agents/systematic_trader.py \
-            --mode paper \
+            --mode $MODE \
             --config /app/config/trader.yaml \
             --model trader \
             >> /app/logs/trader.log 2>&1 &
@@ -64,4 +82,5 @@ while true; do
     # Update marker file
     echo "$(date)" > /app/data/model_pids.txt
     echo "trader=$TRADER_PID" >> /app/data/model_pids.txt
+    echo "mode=$MODE" >> /app/data/model_pids.txt
 done

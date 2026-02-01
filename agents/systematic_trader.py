@@ -69,11 +69,11 @@ class MeanReversionTrader:
         
         # Risk parameters from config
         risk = self.config.get('risk', {})
-        self.bankroll = 1000.0
+        self.bankroll = float(risk.get('bankroll', 500))
         self.kelly_fraction = risk.get('kelly_fraction', 0.25)
-        self.max_position_usd = risk.get('max_position_usd', 500)
+        self.max_position_usd = risk.get('max_position_usd', 50)
         self.max_positions = risk.get('max_positions', 10)
-        self.max_total_exposure = risk.get('max_total_exposure_usd', 2000)
+        self.max_total_exposure = risk.get('max_total_exposure_usd', 400)
         
         # Signal thresholds from config
         signals = self.config.get('signals', {}).get('mean_reversion', {})
