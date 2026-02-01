@@ -717,7 +717,7 @@ Respond with JSON only:
                 break
             
             ai_evaluated += 1
-            await asyncio.sleep(1.0)  # Rate limit: 1 sec between OpenAI calls
+            await asyncio.sleep(5.0)  # Rate limit: 5 sec between OpenAI calls
             
             approved_signal = await self.ai_evaluate(market, signal)
             if approved_signal and self.open_trade(market, approved_signal):
