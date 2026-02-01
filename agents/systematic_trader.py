@@ -682,9 +682,18 @@ Respond with JSON only:
         # 1. Check exits on existing positions
         closed = 0
         
-        # Past years to filter out
+        # Stale year patterns - "in 2025", "by 2025", etc. but NOT "2025-2026" (current seasons)
+        import re
         current_year = datetime.now().year
-        past_years = [str(y) for y in range(2020, current_year)]  # 2020-2025 if we're in 2026
+        stale_patterns = []
+        for y in range(2020, current_year):
+            stale_patterns.extend([
+                f"in {y}",
+                f"by {y}",
+                f"before {y}",
+                f"during {y}",
+                f"end of {y}",
+            ])
         
         for pos in list(self.positions.values()):
             market = market_lookup.get(pos['market_id']) or market_by_question.get(pos['market_question'])
@@ -695,10 +704,10 @@ Respond with JSON only:
             if current is None:
                 continue
             
-            # Auto-close positions in past-year markets
-            question = pos.get('market_question', '')
-            if any(year in question for year in past_years):
-                logger.info(f"Closing stale market position: {question[:50]}...")
+            # Auto-close positions in past-year markets (but allow "2025-2026" season markets)
+            question = pos.get('market_question', '').lower()
+            if any(pattern in question for pattern in stale_patterns):
+                logger.info(f"Closing stale market position: {pos.get('market_question', '')[:50]}...")
                 self.close_trade(pos, current, "stale_market_year")
                 closed += 1
                 continue
@@ -713,10 +722,10 @@ Respond with JSON only:
         candidates = []
         
         for market in markets:
-            question = market.get('question', '')
+            question = market.get('question', '').lower()
             
-            # Skip markets about past years
-            if any(year in question for year in past_years):
+            # Skip markets about past years (but allow "2025-2026" season markets)
+            if any(pattern in question for pattern in stale_patterns):
                 continue
             
             signal = self.find_signal(market)
