@@ -108,11 +108,14 @@ class MeanReversionTrader:
             self._init_clob_client()
         
         mode_str = "LIVE TRADING" if self.live_trading else "PAPER TRADING"
-        logger.info(f"{'='*50}")
-        logger.info(f"  MODE: {mode_str}")
-        logger.info(f"{'='*50}")
-        logger.info(f"Positions: {len(self.positions)}, Bankroll: ${self.bankroll:.0f}")
-        logger.info(f"Thresholds: favorite>{self.favorite_threshold:.0%}, longshot<{self.longshot_threshold:.0%}")
+        # Print to stdout for visibility in Render logs
+        print(f"{'='*50}", flush=True)
+        print(f"  MODE: {mode_str}", flush=True)
+        print(f"  CLOB_AVAILABLE: {CLOB_AVAILABLE}", flush=True)
+        print(f"  POLYGON_KEY_SET: {bool(POLYGON_PRIVATE_KEY)}", flush=True)
+        print(f"{'='*50}", flush=True)
+        print(f"Positions: {len(self.positions)}, Bankroll: ${self.bankroll:.0f}", flush=True)
+        print(f"Thresholds: favorite>{self.favorite_threshold:.0%}, longshot<{self.longshot_threshold:.0%}", flush=True)
         logger.info(f"Risk: kelly={self.kelly_fraction}, max_pos=${self.max_position_usd}, max_daily_loss=${MAX_DAILY_LOSS_USD}")
     
     def _init_clob_client(self):
@@ -592,13 +595,15 @@ Respond with JSON only:
     
     async def run_cycle(self):
         """Run one scan cycle."""
+        print(f"[{datetime.now().isoformat()}] Starting scan cycle...", flush=True)
+        
         # Safety checks
         if not self.check_safety_limits():
-            logger.warning("Safety limits triggered - skipping cycle")
+            print("Safety limits triggered - skipping cycle", flush=True)
             return
         
         markets = await self.fetch_all_markets()
-        logger.info(f"Fetched {len(markets)} markets, checking {len(self.positions)} positions")
+        print(f"Fetched {len(markets)} markets, checking {len(self.positions)} positions", flush=True)
         
         # Build market lookup
         market_lookup = {m.get('id'): m for m in markets if m.get('id')}
