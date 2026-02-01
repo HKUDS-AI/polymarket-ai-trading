@@ -712,7 +712,7 @@ Respond with JSON only:
                 break
             
             # AI gate - with rate limiting (max 5 per cycle, 1 sec delay)
-            if ai_evaluated >= 5:
+            if ai_evaluated >= 15:
                 logger.info(f"Reached AI eval limit, stopping early")
                 break
             
