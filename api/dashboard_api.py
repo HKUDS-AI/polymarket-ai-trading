@@ -165,6 +165,14 @@ async def health():
     }
 
 
+@app.post("/api/trigger-cycle")
+async def trigger_cycle():
+    """Manually trigger a trading cycle."""
+    trigger_file = BASE_DIR / 'data' / 'trigger_cycle'
+    trigger_file.touch()
+    return {'status': 'triggered', 'message': 'Cycle will run within 1 second'}
+
+
 @app.get("/api/trades")
 async def trades(limit: int = 100):
     """Get recent trades."""

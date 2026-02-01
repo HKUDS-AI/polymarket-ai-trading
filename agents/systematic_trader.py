@@ -729,6 +729,7 @@ Respond with JSON only:
     async def run(self):
         """Main loop."""
         logger.info(f"Starting trader, scanning every {self.check_interval}s")
+        trigger_file = Path(DATA_DIR) / 'trigger_cycle'
         
         while True:
             try:
@@ -736,7 +737,13 @@ Respond with JSON only:
             except Exception as e:
                 logger.error(f"Cycle error: {e}")
             
-            await asyncio.sleep(self.check_interval)
+            # Check for manual trigger every second instead of sleeping full interval
+            for _ in range(self.check_interval):
+                if trigger_file.exists():
+                    logger.info("Manual trigger detected, running cycle now")
+                    trigger_file.unlink()
+                    break
+                await asyncio.sleep(1)
 
 
 async def main():
