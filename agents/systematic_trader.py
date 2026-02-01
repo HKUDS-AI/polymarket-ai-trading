@@ -538,9 +538,9 @@ Respond with JSON only:
             token_id = clob_token_ids[0] if signal['side'] == 'YES' else clob_token_ids[1]
             
             # Add 2% buffer to price for better fill probability
-            # e.g., if signal price is 0.10, we bid 0.102 to jump the queue
+            # Aggressive buffer to get fills - pay up to 5% more or 3 cents
             base_price = signal['price']
-            buffer_price = min(base_price * 1.02, base_price + 0.01)  # 2% or 1 cent, whichever is smaller
+            buffer_price = min(base_price * 1.05, base_price + 0.03)  # 5% or 3 cents, whichever is smaller
             buffer_price = round(buffer_price, 3)  # Round to 3 decimals
             
             # Cap at 0.99 to avoid issues
