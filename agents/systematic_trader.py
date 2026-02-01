@@ -522,7 +522,7 @@ Respond with JSON only:
         return True
     
     def _place_live_order(self, market: Dict, signal: Dict, shares: float) -> Optional[str]:
-        """Place a live order via CLOB API."""
+        """Place a live order via CLOB API with price buffer for better fills."""
         try:
             # Get token ID for the outcome
             clob_token_ids = market.get('clobTokenIds', '[]')
@@ -536,10 +536,19 @@ Respond with JSON only:
             # YES = index 0, NO = index 1
             token_id = clob_token_ids[0] if signal['side'] == 'YES' else clob_token_ids[1]
             
-            # Place limit order
+            # Add 2% buffer to price for better fill probability
+            # e.g., if signal price is 0.10, we bid 0.102 to jump the queue
+            base_price = signal['price']
+            buffer_price = min(base_price * 1.02, base_price + 0.01)  # 2% or 1 cent, whichever is smaller
+            buffer_price = round(buffer_price, 3)  # Round to 3 decimals
+            
+            # Cap at 0.99 to avoid issues
+            buffer_price = min(buffer_price, 0.99)
+            
+            # Place limit order with buffer price
             order_args = OrderArgs(
                 token_id=token_id,
-                price=signal['price'],
+                price=buffer_price,
                 size=shares,
                 side="BUY"
             )
@@ -547,7 +556,7 @@ Respond with JSON only:
             response = self.clob_client.create_and_post_order(order_args)
             
             if response and response.get('orderID'):
-                logger.info(f"Live order placed: {response['orderID']}")
+                logger.info(f"Live order placed: {response['orderID']} at {buffer_price} (signal: {base_price})")
                 return response['orderID']
             else:
                 logger.error(f"Order response: {response}")
