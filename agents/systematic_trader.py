@@ -681,6 +681,12 @@ Respond with JSON only:
         
         # 1. Check exits on existing positions
         closed = 0
+        
+        # Past years to filter out
+        from datetime import datetime
+        current_year = datetime.now().year
+        past_years = [str(y) for y in range(2020, current_year)]  # 2020-2025 if we're in 2026
+        
         for pos in list(self.positions.values()):
             market = market_lookup.get(pos['market_id']) or market_by_question.get(pos['market_question'])
             if not market:
@@ -688,6 +694,14 @@ Respond with JSON only:
             
             current = self.get_price(market, pos['side'])
             if current is None:
+                continue
+            
+            # Auto-close positions in past-year markets
+            question = pos.get('market_question', '')
+            if any(year in question for year in past_years):
+                logger.info(f"Closing stale market position: {question[:50]}...")
+                self.close_trade(pos, current, "stale_market_year")
+                closed += 1
                 continue
             
             close_signal = self.should_close(pos, current)
@@ -698,11 +712,6 @@ Respond with JSON only:
         # 2. Look for new entries (with AI gate)
         opened = 0
         candidates = []
-        
-        # Current year - skip markets referencing past years
-        from datetime import datetime
-        current_year = datetime.now().year
-        past_years = [str(y) for y in range(2020, current_year)]  # 2020-2025 if we're in 2026
         
         for market in markets:
             question = market.get('question', '')
