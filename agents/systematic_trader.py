@@ -729,7 +729,7 @@ Respond with JSON only:
     async def run(self):
         """Main loop."""
         logger.info(f"Starting trader, scanning every {self.check_interval}s")
-        trigger_file = Path(DATA_DIR) / 'trigger_cycle'
+        trigger_file = BASE_DIR / 'data' / 'trigger_cycle'
         
         while True:
             try:
