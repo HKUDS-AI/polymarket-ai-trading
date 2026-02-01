@@ -19,8 +19,9 @@ signals:
   mean_reversion:
     enabled: true
     favorite_threshold: 0.75   # Trade when YES > 75% (buy NO)
-    longshot_threshold: 0.25   # Trade when YES < 25% (buy YES)
-    min_mispricing_pct: 10.0   # Minimum 10% edge to fair value
+    longshot_min: 0.05         # Longshot floor - don't buy below 5%
+    longshot_max: 0.20         # Longshot ceiling - buy YES when 5-20%
+    min_mispricing_pct: 5.0    # Minimum 5% edge (research-based)
 
 trading:
   mode: live

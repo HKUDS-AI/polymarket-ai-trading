@@ -1,46 +1,49 @@
-# Fly.io Configuration for Polymarket Trading System
-# Deploy to Amsterdam (Netherlands) to avoid Polymarket geo-restrictions
+# fly.toml app configuration file generated for polymarket-trader-bitter-lake-7632 on 2026-02-01T17:34:10Z
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
 
-app = "polymarket-trader"
-primary_region = "ams"  # Amsterdam - NOT on Polymarket's blocked list
+app = 'polymarket-trader-bitter-lake-7632'
+primary_region = 'ams'
 
 [build]
-  dockerfile = "Dockerfile"
+  dockerfile = 'Dockerfile'
 
 [env]
-  PORT = "8000"
+  PORT = '8000'
+
+[processes]
+  app = '/app/scripts/start_all.sh'
+
+[[mounts]]
+  source = 'polymarket_data'
+  destination = '/app/data'
 
 [http_service]
   internal_port = 8000
   force_https = true
-  auto_stop_machines = false  # Keep running 24/7 for trading
+  auto_stop_machines = 'off'
   auto_start_machines = true
   min_machines_running = 1
-  processes = ["app"]
+  processes = ['app']
 
   [http_service.concurrency]
-    type = "connections"
+    type = 'connections'
     hard_limit = 25
     soft_limit = 20
 
-[[vm]]
-  memory = "512mb"
-  cpu_kind = "shared"
-  cpus = 1
-
-[mounts]
-  source = "polymarket_data"
-  destination = "/app/data"
-
 [checks]
   [checks.health]
-    grace_period = "60s"
-    interval = "30s"
-    method = "GET"
-    path = "/api/health"
     port = 8000
-    timeout = "10s"
-    type = "http"
+    type = 'http'
+    interval = '30s'
+    timeout = '10s'
+    grace_period = '1m0s'
+    method = 'GET'
+    path = '/api/health'
 
-[processes]
-  app = "/app/scripts/start_all.sh"
+[[vm]]
+  memory = '512mb'
+  cpu_kind = 'shared'
+  cpus = 1
+  memory_mb = 512
