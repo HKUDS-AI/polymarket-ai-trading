@@ -87,8 +87,11 @@ class MeanReversionTrader:
         
         # Fixed parameters
         self.min_volume = 10000           # $10k minimum volume
-        self.take_profit_pct = 50.0       # Sell at +50%
         self.stop_loss_pct = -50.0        # Sell at -50%
+        
+        # Trailing stop parameters
+        self.trailing_activation_pct = 50.0   # Activate trailing stop at +50%
+        self.trailing_distance_pct = 25.0     # Trail 25% behind high water mark
         
         # Safety: daily loss tracking
         self.daily_pnl = 0.0
@@ -197,14 +200,16 @@ class MeanReversionTrader:
             ''', (self.model_name,))
             
             for row in cursor.fetchall():
+                entry_price = row[4]
                 self.positions[str(row[0])] = {
                     'trade_id': row[0],
                     'market_id': row[1],
                     'market_question': row[2],
                     'side': row[3],
-                    'entry_price': row[4],
+                    'entry_price': entry_price,
                     'size_usd': row[5],
-                    'shares': row[6]
+                    'shares': row[6],
+                    'high_water': entry_price  # Initialize high water mark
                 }
             conn.close()
         except Exception as e:
@@ -381,17 +386,42 @@ Respond with JSON only:
             return signal  # Fail open - if AI fails, still allow trade
     
     def should_close(self, position: Dict, current_price: float) -> Optional[Dict]:
-        """Check if position should be closed."""
+        """
+        Check if position should be closed using trailing stop logic.
+        
+        - Stop loss at -50% (always active)
+        - Once up +50%, activate trailing stop
+        - Trailing stop follows 25% behind high water mark
+        """
         entry = position['entry_price']
         if entry <= 0:
             return None
         
         pnl_pct = ((current_price - entry) / entry) * 100
         
-        if pnl_pct >= self.take_profit_pct:
-            return {'reason': f'Take profit +{pnl_pct:.0f}%', 'price': current_price}
-        elif pnl_pct <= self.stop_loss_pct:
+        # Update high water mark
+        high_water = position.get('high_water', entry)
+        if current_price > high_water:
+            high_water = current_price
+            position['high_water'] = high_water
+        
+        high_water_pnl = ((high_water - entry) / entry) * 100
+        
+        # Stop loss - always active
+        if pnl_pct <= self.stop_loss_pct:
             return {'reason': f'Stop loss {pnl_pct:.0f}%', 'price': current_price}
+        
+        # Trailing stop - only active once we've hit activation threshold
+        if high_water_pnl >= self.trailing_activation_pct:
+            # Calculate trailing stop level
+            trailing_stop_price = high_water * (1 - self.trailing_distance_pct / 100)
+            trailing_stop_pnl = ((trailing_stop_price - entry) / entry) * 100
+            
+            if current_price <= trailing_stop_price:
+                return {
+                    'reason': f'Trailing stop +{pnl_pct:.0f}% (peak was +{high_water_pnl:.0f}%)',
+                    'price': current_price
+                }
         
         return None
     
@@ -463,7 +493,8 @@ Respond with JSON only:
             'entry_price': entry_price,
             'size_usd': position_size,
             'shares': shares,
-            'order_id': order_id
+            'order_id': order_id,
+            'high_water': entry_price  # For trailing stop
         }
         
         self.bankroll -= position_size
