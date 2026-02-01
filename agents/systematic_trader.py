@@ -115,6 +115,7 @@ class MeanReversionTrader:
         print(f"  MODE: {mode_str}", flush=True)
         print(f"  CLOB_AVAILABLE: {CLOB_AVAILABLE}", flush=True)
         print(f"  POLYGON_KEY_SET: {bool(POLYGON_PRIVATE_KEY)}", flush=True)
+        print(f"  OPENAI_KEY_SET: {bool(OPENAI_API_KEY)}", flush=True)
         print(f"{'='*50}", flush=True)
         print(f"Positions: {len(self.positions)}, Bankroll: ${self.bankroll:.0f}", flush=True)
         print(f"Thresholds: favorite>{self.favorite_threshold:.0%}, longshot={self.longshot_min:.0%}-{self.longshot_max:.0%}", flush=True)
