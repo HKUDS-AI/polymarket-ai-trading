@@ -683,7 +683,6 @@ Respond with JSON only:
         closed = 0
         
         # Past years to filter out
-        from datetime import datetime
         current_year = datetime.now().year
         past_years = [str(y) for y in range(2020, current_year)]  # 2020-2025 if we're in 2026
         
