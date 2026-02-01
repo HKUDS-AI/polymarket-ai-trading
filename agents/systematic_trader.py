@@ -117,7 +117,7 @@ class MeanReversionTrader:
         print(f"  POLYGON_KEY_SET: {bool(POLYGON_PRIVATE_KEY)}", flush=True)
         print(f"{'='*50}", flush=True)
         print(f"Positions: {len(self.positions)}, Bankroll: ${self.bankroll:.0f}", flush=True)
-        print(f"Thresholds: favorite>{self.favorite_threshold:.0%}, longshot<{self.longshot_threshold:.0%}", flush=True)
+        print(f"Thresholds: favorite>{self.favorite_threshold:.0%}, longshot={self.longshot_min:.0%}-{self.longshot_max:.0%}", flush=True)
         logger.info(f"Risk: kelly={self.kelly_fraction}, max_pos=${self.max_position_usd}, max_daily_loss=${MAX_DAILY_LOSS_USD}")
     
     def _init_clob_client(self):
