@@ -538,13 +538,15 @@ Respond with JSON only:
             token_id = clob_token_ids[0] if signal['side'] == 'YES' else clob_token_ids[1]
             
             # Add 2% buffer to price for better fill probability
-            # Aggressive buffer to get fills - pay up to 5% more or 3 cents
+            # Market-like order - bid high to fill immediately
             base_price = signal['price']
-            buffer_price = min(base_price * 1.05, base_price + 0.03)  # 5% or 3 cents, whichever is smaller
-            buffer_price = round(buffer_price, 3)  # Round to 3 decimals
+            # Add 50% or 10 cents to sweep the order book
+            buffer_price = min(base_price * 1.50, base_price + 0.10)
+            buffer_price = round(buffer_price, 3)
             
             # Cap at 0.99 to avoid issues
             buffer_price = min(buffer_price, 0.99)
+            logger.info(f"Market fill: signal {base_price:.3f} -> bid {buffer_price:.3f}")
             
             # Place limit order with buffer price
             order_args = OrderArgs(
