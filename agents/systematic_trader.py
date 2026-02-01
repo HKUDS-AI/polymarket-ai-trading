@@ -698,7 +698,19 @@ Respond with JSON only:
         # 2. Look for new entries (with AI gate)
         opened = 0
         candidates = []
+        
+        # Current year - skip markets referencing past years
+        from datetime import datetime
+        current_year = datetime.now().year
+        past_years = [str(y) for y in range(2020, current_year)]  # 2020-2025 if we're in 2026
+        
         for market in markets:
+            question = market.get('question', '')
+            
+            # Skip markets about past years
+            if any(year in question for year in past_years):
+                continue
+            
             signal = self.find_signal(market)
             if signal:
                 candidates.append((market, signal))
