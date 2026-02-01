@@ -28,13 +28,13 @@ else
 fi
 echo ""
 
-# Start the trading model
+# Start the trading model (output to stdout for Render visibility)
 echo "Starting trader in $MODE mode..."
-python3 /app/agents/systematic_trader.py \
+python3 -u /app/agents/systematic_trader.py \
     --mode $MODE \
     --config /app/config/trader.yaml \
     --model trader \
-    >> /app/logs/trader.log 2>&1 &
+    2>&1 &
 
 TRADER_PID=$!
 echo $TRADER_PID > /app/data/trader.pid
@@ -70,11 +70,11 @@ while true; do
     # Check if trader is still running
     if ! kill -0 "$TRADER_PID" 2>/dev/null; then
         echo "[$(date)] Trader crashed, restarting..."
-        python3 /app/agents/systematic_trader.py \
+        python3 -u /app/agents/systematic_trader.py \
             --mode $MODE \
             --config /app/config/trader.yaml \
             --model trader \
-            >> /app/logs/trader.log 2>&1 &
+            2>&1 &
         TRADER_PID=$!
         echo $TRADER_PID > /app/data/trader.pid
     fi
