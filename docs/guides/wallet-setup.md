@@ -72,7 +72,7 @@ print(f"Private Key: {private_key}")
 
 ```bash
 # NEVER commit this file to git!
-POLYGON_WALLET_PRIVATE_KEY="0x..."
+POLYGON_PRIVATE_KEY="0x..."
 OPENAI_API_KEY="sk-..." # Optional, for AI features
 ```
 
@@ -91,8 +91,8 @@ import os
 from eth_account import Account
 from web3 import Web3
 
-# Load private key
-private_key = os.getenv("POLYGON_WALLET_PRIVATE_KEY")
+# Load private key (supports both variable names)
+private_key = os.getenv("POLYGON_PRIVATE_KEY") or os.getenv("POLYGON_WALLET_PRIVATE_KEY")
 account = Account.from_key(private_key)
 
 # Connect to Polygon
@@ -177,7 +177,7 @@ risk:
 
 1. **Environment variables** (Development):
    ```bash
-   export POLYGON_WALLET_PRIVATE_KEY="0x..."
+   export POLYGON_PRIVATE_KEY="0x..."
    ```
 
 2. **Encrypted file** (Production):
@@ -251,5 +251,4 @@ For issues:
 3. Emergency stop: `python scripts/emergency_stop.py`
 
 **Never share your private key for support!**
-
 

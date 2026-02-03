@@ -232,7 +232,7 @@ render logs --service polymarket-trading-system | grep "Conservative"
 
 Never commit these to Git:
 - `OPENAI_API_KEY`
-- `POLYGON_WALLET_PRIVATE_KEY` (if you add real trading)
+- `POLYGON_PRIVATE_KEY` (if you add real trading)
 
 Use Render's environment variable management instead.
 
