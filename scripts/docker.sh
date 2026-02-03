@@ -1,45 +1,56 @@
 #!/bin/bash
 # Docker Management Script
 
+set -e
+
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_ROOT"
+
+if docker compose version >/dev/null 2>&1; then
+    COMPOSE_CMD=(docker compose)
+elif command -v docker-compose >/dev/null 2>&1; then
+    COMPOSE_CMD=(docker-compose)
+else
+    echo "❌ docker compose not found. Install Docker Desktop first."
+    exit 1
+fi
 
 case "$1" in
     start)
         echo "🐳 Starting Docker containers..."
-        docker-compose up -d --build
+        "${COMPOSE_CMD[@]}" up -d --build
+        "${COMPOSE_CMD[@]}" ps
         echo ""
         echo "✅ All containers started!"
         echo "📊 Dashboard: http://localhost:8000"
-        docker-compose ps
         ;;
     
     stop)
         echo "🛑 Stopping Docker containers..."
-        docker-compose down
+        "${COMPOSE_CMD[@]}" down
         echo "✅ All containers stopped"
         ;;
     
     restart)
         echo "♻️  Restarting Docker containers..."
-        docker-compose restart
+        "${COMPOSE_CMD[@]}" restart
         echo "✅ All containers restarted"
-        docker-compose ps
+        "${COMPOSE_CMD[@]}" ps
         ;;
     
     logs)
         if [ -z "$2" ]; then
             echo "📋 Showing logs for all containers..."
-            docker-compose logs -f
+            "${COMPOSE_CMD[@]}" logs -f
         else
             echo "📋 Showing logs for $2..."
-            docker-compose logs -f "$2"
+            "${COMPOSE_CMD[@]}" logs -f "$2"
         fi
         ;;
     
     status)
         echo "📊 Container Status:"
-        docker-compose ps
+        "${COMPOSE_CMD[@]}" ps
         echo ""
         echo "💻 Resource Usage:"
         docker stats --no-stream
@@ -47,24 +58,29 @@ case "$1" in
     
     clean)
         echo "🧹 Cleaning up..."
-        docker-compose down -v
+        "${COMPOSE_CMD[@]}" down -v
         docker system prune -f
         echo "✅ Cleanup complete"
         ;;
     
     rebuild)
         echo "🔨 Rebuilding containers..."
-        docker-compose down
-        docker-compose build --no-cache
-        docker-compose up -d
+        "${COMPOSE_CMD[@]}" down
+        "${COMPOSE_CMD[@]}" build --no-cache
+        "${COMPOSE_CMD[@]}" up -d
         echo "✅ Rebuild complete"
-        docker-compose ps
+        "${COMPOSE_CMD[@]}" ps
+        ;;
+
+    smoke)
+        echo "🧪 Running smoke tests..."
+        python3 scripts/smoke_test.py --api-url http://localhost:8000
         ;;
     
     *)
         echo "🐳 Docker Management Script"
         echo ""
-        echo "Usage: $0 {start|stop|restart|logs|status|clean|rebuild}"
+        echo "Usage: $0 {start|stop|restart|logs|status|clean|rebuild|smoke}"
         echo ""
         echo "Commands:"
         echo "  start    - Build and start all containers"
@@ -74,6 +90,7 @@ case "$1" in
         echo "  status   - Show container status and resources"
         echo "  clean    - Stop and remove all containers/volumes"
         echo "  rebuild  - Rebuild containers from scratch"
+        echo "  smoke    - Run local smoke tests (DB + API health)"
         echo ""
         echo "Examples:"
         echo "  $0 start"
@@ -81,5 +98,3 @@ case "$1" in
         echo "  $0 status"
         ;;
 esac
-
-
