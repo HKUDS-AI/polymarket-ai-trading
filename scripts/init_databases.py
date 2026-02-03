@@ -24,7 +24,8 @@ CREATE TABLE IF NOT EXISTS trades (
     exit_price REAL,
     exit_timestamp TEXT,
     pnl REAL,
-    notes TEXT
+    notes TEXT,
+    token_id TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_status ON trades(status);
