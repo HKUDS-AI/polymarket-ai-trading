@@ -45,6 +45,14 @@ try:
 except ImportError:
     logger.warning("py_clob_client not installed - live trading unavailable")
 
+WEB3_AVAILABLE = False
+try:
+    from web3 import Web3
+    from eth_account import Account
+    WEB3_AVAILABLE = True
+except ImportError:
+    logger.warning("web3 not installed - on-chain position sync unavailable")
+
 
 class MeanReversionTrader:
     """
@@ -92,6 +100,11 @@ class MeanReversionTrader:
         # Execution parameters
         execution = self.config.get('execution', {})
         self.check_interval = execution.get('check_interval_seconds', 300)
+        self.market_fetch_limit = int(execution.get('market_fetch_limit', 1500))
+        self.sync_every_cycles = int(execution.get('sync_every_cycles', 1))
+        self.sync_min_shares = float(execution.get('sync_min_shares', 0.5))
+        self.sync_batch_size = int(execution.get('sync_batch_size', 150))
+        self._cycle_count = 0
         
         # Fixed parameters
         self.min_volume = 10000           # $10k minimum volume
@@ -107,6 +120,8 @@ class MeanReversionTrader:
         
         # Track positions in memory (keyed by trade_id)
         self.positions: Dict[str, Dict] = {}
+        self.wallet_address = None
+        self.ctf_contract = None
         
         self._init_db()
         self._load_positions()
@@ -114,6 +129,7 @@ class MeanReversionTrader:
         # Initialize CLOB client for live trading
         if self.live_trading:
             self._init_clob_client()
+            self._init_onchain_sync()
         
         mode_str = "LIVE TRADING" if self.live_trading else "PAPER TRADING"
         # Print to stdout for visibility in Render logs
@@ -147,6 +163,39 @@ class MeanReversionTrader:
         except Exception as e:
             logger.error(f"Failed to init CLOB client: {e}")
             self.live_trading = False
+
+    def _init_onchain_sync(self):
+        """Initialize on-chain balance sync helpers."""
+        if not WEB3_AVAILABLE or not POLYGON_PRIVATE_KEY:
+            return
+
+        try:
+            self.wallet_address = Account.from_key(POLYGON_PRIVATE_KEY).address
+            rpc_url = os.getenv("POLYGON_RPC_URL", "https://polygon-rpc.com")
+            w3 = Web3(Web3.HTTPProvider(rpc_url))
+            if not w3.is_connected():
+                logger.warning("On-chain sync disabled: RPC not reachable (%s)", rpc_url)
+                return
+
+            # Polymarket uses the ConditionalTokens (ERC-1155) contract on Polygon.
+            ctf_address = os.getenv("CTF_CONTRACT_ADDRESS", "0x4D97DCd97eC945f40cF65F87097ACe5EA0476045")
+            abi = [{
+                "constant": True,
+                "inputs": [
+                    {"name": "accounts", "type": "address[]"},
+                    {"name": "ids", "type": "uint256[]"},
+                ],
+                "name": "balanceOfBatch",
+                "outputs": [{"name": "", "type": "uint256[]"}],
+                "stateMutability": "view",
+                "type": "function",
+            }]
+            self.ctf_contract = w3.eth.contract(address=w3.to_checksum_address(ctf_address), abi=abi)
+            logger.info("On-chain sync enabled for wallet %s", self.wallet_address)
+        except Exception as e:
+            logger.warning("Failed to init on-chain sync: %s", e)
+            self.wallet_address = None
+            self.ctf_contract = None
     
     def check_safety_limits(self) -> bool:
         """Check if we should stop trading due to safety limits."""
@@ -200,9 +249,14 @@ class MeanReversionTrader:
                 exit_price REAL,
                 exit_timestamp TEXT,
                 pnl REAL,
-                notes TEXT
+                notes TEXT,
+                token_id TEXT
             )
         ''')
+        # Backfill schema for existing DBs created before token_id existed.
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(trades)").fetchall()}
+        if "token_id" not in cols:
+            conn.execute("ALTER TABLE trades ADD COLUMN token_id TEXT")
         conn.commit()
         conn.close()
     
@@ -212,7 +266,7 @@ class MeanReversionTrader:
             conn = sqlite3.connect(str(self.db_path))
             cursor = conn.cursor()
             cursor.execute('''
-                SELECT id, market_id, market_question, side, entry_price, size_usd, shares
+                SELECT id, market_id, market_question, side, entry_price, size_usd, shares, token_id
                 FROM trades WHERE status = 'open' AND model = ?
             ''', (self.model_name,))
             
@@ -226,6 +280,7 @@ class MeanReversionTrader:
                     'entry_price': entry_price,
                     'size_usd': row[5],
                     'shares': row[6],
+                    'token_id': row[7],
                     'high_water': entry_price  # Initialize high water mark
                 }
             conn.close()
@@ -236,15 +291,223 @@ class MeanReversionTrader:
         """Fetch all active markets from Polymarket."""
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.get(
-                    f"{GAMMA_API}/markets",
-                    params={"limit": 500, "active": "true", "closed": "false"}
-                )
-                response.raise_for_status()
-                return response.json() if isinstance(response.json(), list) else []
+                markets: List[Dict] = []
+                page_size = 500
+                seen_first_id = None
+                max_markets = max(page_size, self.market_fetch_limit)
+
+                for offset in range(0, max_markets, page_size):
+                    response = await client.get(
+                        f"{GAMMA_API}/markets",
+                        params={
+                            "limit": page_size,
+                            "offset": offset,
+                            "active": "true",
+                            "closed": "false",
+                        },
+                    )
+                    response.raise_for_status()
+                    batch = response.json() if isinstance(response.json(), list) else []
+                    if not batch:
+                        break
+
+                    # Guard against APIs that ignore offset and keep returning page 1.
+                    first_id = batch[0].get("id")
+                    if offset > 0 and first_id and first_id == seen_first_id:
+                        logger.warning("Gamma offset pagination appears unsupported; stopping at %s markets", len(markets))
+                        break
+                    if seen_first_id is None:
+                        seen_first_id = first_id
+
+                    markets.extend(batch)
+                    if len(batch) < page_size:
+                        break
+
+                return markets
         except Exception as e:
             logger.error(f"Failed to fetch markets: {e}")
             return []
+
+    def _extract_market_token_rows(self, markets: List[Dict]) -> Dict[str, Dict]:
+        """Build token_id -> market metadata map from Gamma markets."""
+        token_rows: Dict[str, Dict] = {}
+        for market in markets:
+            token_ids = market.get("clobTokenIds", "[]")
+            if isinstance(token_ids, str):
+                try:
+                    token_ids = json.loads(token_ids)
+                except Exception:
+                    token_ids = []
+            if not isinstance(token_ids, list):
+                continue
+            for idx, token_id in enumerate(token_ids[:2]):
+                token_str = str(token_id)
+                token_rows[token_str] = {
+                    "market_id": market.get("id", "unknown"),
+                    "market_question": market.get("question", "Synced from chain"),
+                    "side": "YES" if idx == 0 else "NO",
+                    "price": self.get_price(market, "YES" if idx == 0 else "NO"),
+                }
+        return token_rows
+
+    def _fetch_onchain_balances(self, token_ids: List[str]) -> Dict[str, float]:
+        """Read ERC-1155 balances in chunks to avoid provider rate-limit spikes."""
+        if not self.ctf_contract or not self.wallet_address or not token_ids:
+            return {}
+
+        balances: Dict[str, float] = {}
+        batch_size = max(1, self.sync_batch_size)
+        for start in range(0, len(token_ids), batch_size):
+            chunk = token_ids[start:start + batch_size]
+            numeric_chunk = []
+            for tid in chunk:
+                try:
+                    numeric_chunk.append((tid, int(tid)))
+                except Exception:
+                    continue
+            if not numeric_chunk:
+                continue
+            accounts = [self.wallet_address] * len(numeric_chunk)
+            ids = [item[1] for item in numeric_chunk]
+
+            # Retry each chunk a few times before giving up.
+            last_err = None
+            for attempt in range(3):
+                try:
+                    values = self.ctf_contract.functions.balanceOfBatch(accounts, ids).call()
+                    for (tid, _), value in zip(numeric_chunk, values):
+                        balances[tid] = float(value) / 1_000_000.0
+                    last_err = None
+                    break
+                except Exception as e:
+                    last_err = e
+                    wait = 1.5 * (attempt + 1)
+                    logger.warning("balanceOfBatch retry %s for %s tokens (%s)", attempt + 1, len(numeric_chunk), e)
+                    try:
+                        import time
+                        time.sleep(wait)
+                    except Exception:
+                        pass
+            if last_err:
+                logger.warning("Skipping token batch due to repeated RPC failures: %s", last_err)
+        return balances
+
+    def _sync_upsert_position(self, token_id: str, meta: Dict, shares: float):
+        """Ensure a live on-chain holding has an open DB row and in-memory position."""
+        market_id = meta.get("market_id", "unknown")
+        market_question = meta.get("market_question", "Synced from chain")
+        side = meta.get("side", "YES")
+        current_price = meta.get("price") or 0.5
+
+        conn = sqlite3.connect(str(self.db_path))
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT id, entry_price, size_usd
+            FROM trades
+            WHERE status = 'open' AND model = ? AND token_id = ?
+            ORDER BY timestamp DESC LIMIT 1
+            """,
+            (self.model_name, token_id),
+        )
+        row = cursor.fetchone()
+        if not row:
+            # Backfill token_id onto legacy open rows that predate token tracking.
+            cursor.execute(
+                """
+                SELECT id, entry_price, size_usd
+                FROM trades
+                WHERE status = 'open' AND model = ? AND market_id = ? AND side = ? AND (token_id IS NULL OR token_id = '')
+                ORDER BY timestamp DESC LIMIT 1
+                """,
+                (self.model_name, market_id, side),
+            )
+            row = cursor.fetchone()
+
+        if row:
+            trade_id = row[0]
+            entry_price = float(row[1] or current_price or 0.5)
+            size_usd = shares * entry_price
+            cursor.execute(
+                """
+                UPDATE trades
+                SET shares = ?, size_usd = ?, market_id = ?, market_question = ?, side = ?, token_id = ?
+                WHERE id = ?
+                """,
+                (shares, size_usd, market_id, market_question, side, token_id, trade_id),
+            )
+        else:
+            entry_price = float(current_price or 0.5)
+            size_usd = shares * entry_price
+            cursor.execute(
+                """
+                INSERT INTO trades
+                (timestamp, model, market_id, market_question, side, entry_price, size_usd, shares, status, notes, token_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?)
+                """,
+                (
+                    datetime.now().isoformat(),
+                    self.model_name,
+                    market_id,
+                    market_question,
+                    side,
+                    entry_price,
+                    size_usd,
+                    shares,
+                    "SYNC_DISCOVERED_ONCHAIN",
+                    token_id,
+                ),
+            )
+            trade_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+
+        self.positions[str(trade_id)] = {
+            "trade_id": trade_id,
+            "market_id": market_id,
+            "market_question": market_question,
+            "side": side,
+            "entry_price": float(entry_price),
+            "size_usd": float(shares * float(entry_price)),
+            "shares": float(shares),
+            "token_id": token_id,
+            "high_water": float(entry_price),
+        }
+
+    def sync_live_positions(self, markets: List[Dict]):
+        """Sync local open positions against on-chain holdings for active market tokens."""
+        if not self.live_trading or not self.ctf_contract or not self.wallet_address:
+            return
+
+        token_rows = self._extract_market_token_rows(markets)
+        if not token_rows:
+            return
+
+        balances = self._fetch_onchain_balances(list(token_rows.keys()))
+        if not balances:
+            return
+
+        # 1) Upsert any positive on-chain holdings.
+        discovered = 0
+        for token_id, shares in balances.items():
+            if shares <= self.sync_min_shares:
+                continue
+            self._sync_upsert_position(token_id, token_rows[token_id], shares)
+            discovered += 1
+
+        # 2) Close tracked rows whose token was queried and is now near-zero.
+        closed = 0
+        for pos in list(self.positions.values()):
+            token_id = str(pos.get("token_id") or "")
+            if not token_id or token_id not in balances:
+                continue
+            if balances[token_id] <= self.sync_min_shares:
+                price = token_rows.get(token_id, {}).get("price") or pos.get("entry_price", 0.5)
+                self.close_trade(pos, price, "sync_zero_onchain_balance")
+                closed += 1
+
+        if discovered or closed:
+            logger.info("On-chain sync: upserted=%s closed=%s tracked=%s", discovered, closed, len(self.positions))
     
     def get_price(self, market: Dict, side: str) -> Optional[float]:
         """Get current price for YES or NO."""
@@ -484,6 +747,15 @@ Respond with JSON only:
         
         entry_price = signal['price']
         shares = position_size / entry_price
+        clob_token_ids = market.get('clobTokenIds', '[]')
+        if isinstance(clob_token_ids, str):
+            try:
+                clob_token_ids = json.loads(clob_token_ids)
+            except Exception:
+                clob_token_ids = []
+        token_id = None
+        if isinstance(clob_token_ids, list) and len(clob_token_ids) >= 2:
+            token_id = str(clob_token_ids[0] if signal['side'] == 'YES' else clob_token_ids[1])
         
         # LIVE TRADING: Place actual order via CLOB
         order_id = None
@@ -497,8 +769,8 @@ Respond with JSON only:
         conn = sqlite3.connect(str(self.db_path))
         cursor = conn.cursor()
         cursor.execute('''
-            INSERT INTO trades (timestamp, model, market_id, market_question, side, entry_price, size_usd, shares, status, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?)
+            INSERT INTO trades (timestamp, model, market_id, market_question, side, entry_price, size_usd, shares, status, notes, token_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?)
         ''', (
             datetime.now().isoformat(),
             self.model_name,
@@ -508,7 +780,8 @@ Respond with JSON only:
             entry_price,
             position_size,
             shares,
-            signal['reason'] + (f" | order_id:{order_id}" if order_id else " | PAPER")
+            signal['reason'] + (f" | order_id:{order_id}" if order_id else " | PAPER"),
+            token_id,
         ))
         trade_id = cursor.lastrowid
         conn.commit()
@@ -523,6 +796,7 @@ Respond with JSON only:
             'entry_price': entry_price,
             'size_usd': position_size,
             'shares': shares,
+            'token_id': token_id,
             'order_id': order_id,
             'high_water': entry_price  # For trailing stop
         }
@@ -650,12 +924,13 @@ Respond with JSON only:
     def _place_live_sell(self, position: Dict, price: float) -> Optional[str]:
         """Place a live sell order via CLOB API."""
         try:
-            # For selling, we need the token ID - this should be stored with the position
-            # For now, we'll fetch the market again
-            # In production, store token_id with position
+            token_id = position.get('token_id')
+            if not token_id:
+                logger.error("Cannot place live sell without token_id")
+                return None
             
             order_args = OrderArgs(
-                token_id=position.get('token_id', ''),  # Need to store this
+                token_id=token_id,
                 price=price,
                 size=position['shares'],
                 side="SELL"
@@ -685,6 +960,10 @@ Respond with JSON only:
         
         markets = await self.fetch_all_markets()
         print(f"Fetched {len(markets)} markets, checking {len(self.positions)} positions", flush=True)
+
+        self._cycle_count += 1
+        if self.sync_every_cycles > 0 and (self._cycle_count % self.sync_every_cycles == 0):
+            self.sync_live_positions(markets)
         
         # Build market lookup
         market_lookup = {m.get('id'): m for m in markets if m.get('id')}

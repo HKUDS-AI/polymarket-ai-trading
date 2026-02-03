@@ -7,6 +7,10 @@ data:
 
 execution:
   check_interval_seconds: 900  # 15 minutes
+  market_fetch_limit: 1500     # Fetch more active markets for better position discovery
+  sync_every_cycles: 1         # Live mode: run on-chain balance reconciliation each cycle
+  sync_min_shares: 0.5         # Ignore dust positions below this share count
+  sync_batch_size: 150         # ERC-1155 balanceOfBatch chunk size
 
 risk:
   bankroll: 500               # Starting bankroll ($500)
