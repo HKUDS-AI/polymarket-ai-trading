@@ -17,10 +17,9 @@ docker run -d \
     -v $(pwd)/data:/app/data \
     -v $(pwd)/logs:/app/logs \
     -v $(pwd)/config:/app/config \
-    -e POLYGON_WALLET_PRIVATE_KEY="${POLYGON_WALLET_PRIVATE_KEY}" \
+    -e POLYGON_PRIVATE_KEY="${POLYGON_PRIVATE_KEY}" \
     systematic-trader:latest
 
 echo "Container started. View logs with:"
 echo "  docker logs -f systematic-trader"
-
 

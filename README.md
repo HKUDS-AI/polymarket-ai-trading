@@ -147,14 +147,17 @@ OPENAI_API_KEY=sk-...
 3. **Start Docker containers**
 
 ```bash
-# Build and start all services
-docker compose up -d
+# Build and start all services (canonical wrapper)
+bash scripts/docker.sh start
 
 # Check status
-docker compose ps
+bash scripts/docker.sh status
 
 # View logs
-docker compose logs -f
+bash scripts/docker.sh logs
+
+# Run smoke checks
+bash scripts/docker.sh smoke
 ```
 
 4. **Access the dashboard**
@@ -307,7 +310,7 @@ All containers restart automatically on failure.
 
 Never commit these to Git:
 - `OPENAI_API_KEY` - OpenAI API key
-- `POLYGON_WALLET_PRIVATE_KEY` - Wallet private key (if going live)
+- `POLYGON_PRIVATE_KEY` - Wallet private key (if going live)
 
 All sensitive vars are in `.env` which is gitignored.
 
@@ -390,4 +393,3 @@ Built on research and insights from:
 - Always trade responsibly with capital you can afford to lose
 
 Use at your own risk. No warranty provided.
-

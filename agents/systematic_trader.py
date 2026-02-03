@@ -27,11 +27,12 @@ logger = logging.getLogger(__name__)
 GAMMA_API = "https://gamma-api.polymarket.com"
 CLOB_API = "https://clob.polymarket.com"
 BASE_DIR = Path(__file__).parent.parent
+EMERGENCY_STOP_FLAG = BASE_DIR / 'data' / 'EMERGENCY_STOP'
 
 # Environment variables
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
 LIVE_TRADING = os.getenv('LIVE_TRADING', 'false').lower() == 'true'
-POLYGON_PRIVATE_KEY = os.getenv('POLYGON_PRIVATE_KEY', '')
+POLYGON_PRIVATE_KEY = os.getenv('POLYGON_PRIVATE_KEY') or os.getenv('POLYGON_WALLET_PRIVATE_KEY', '')
 KILL_SWITCH = os.getenv('KILL_SWITCH', 'false').lower() == 'true'
 MAX_DAILY_LOSS_USD = float(os.getenv('MAX_DAILY_LOSS_USD', '200'))
 
@@ -78,8 +79,13 @@ class MeanReversionTrader:
         # Signal thresholds from config (based on Berg & Rietz 2018 research)
         signals = self.config.get('signals', {}).get('mean_reversion', {})
         self.favorite_threshold = signals.get('favorite_threshold', 0.75)
+        # Backward compatibility: older configs use longshot_threshold only.
+        longshot_threshold = signals.get('longshot_threshold')
         self.longshot_min = signals.get('longshot_min', 0.05)  # Don't buy below 5%
-        self.longshot_max = signals.get('longshot_max', 0.20)  # Buy in 5-20% range
+        if longshot_threshold is not None and 'longshot_max' not in signals:
+            self.longshot_max = longshot_threshold
+        else:
+            self.longshot_max = signals.get('longshot_max', 0.20)  # Buy in 5-20% range
         self.min_mispricing_pct = signals.get('min_mispricing_pct', 5.0)
         self.min_hours_to_resolution = 48  # Avoid markets ending soon (bias evaporates)
         
@@ -144,6 +150,11 @@ class MeanReversionTrader:
     
     def check_safety_limits(self) -> bool:
         """Check if we should stop trading due to safety limits."""
+        # Emergency stop flag file (set by scripts/emergency_stop.py).
+        if EMERGENCY_STOP_FLAG.exists():
+            logger.warning(f"Emergency stop flag detected: {EMERGENCY_STOP_FLAG}")
+            return False
+
         # Kill switch
         if KILL_SWITCH:
             logger.warning("KILL SWITCH ACTIVATED - stopping all trading")
