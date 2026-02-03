@@ -35,7 +35,13 @@ def stop_all_models():
                 continue
             
             try:
-                model, pid_str = line.split(':')
+                if ':' in line:
+                    model, pid_str = line.split(':', 1)
+                elif '=' in line:
+                    model, pid_str = line.split('=', 1)
+                else:
+                    continue
+                
                 pid = int(pid_str)
                 
                 print(f"Stopping {model} (PID {pid})...", end=' ')
@@ -51,6 +57,9 @@ def stop_all_models():
                     print("❌ Permission denied")
                     failed.append(model)
             
+            except ValueError:
+                # Skip non-PID metadata lines (e.g. mode=paper).
+                continue
             except Exception as e:
                 print(f"❌ Error: {e}")
                 failed.append(line)
@@ -72,5 +81,4 @@ def stop_all_models():
 
 if __name__ == '__main__':
     stop_all_models()
-
 

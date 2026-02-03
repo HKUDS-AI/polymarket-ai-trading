@@ -1,6 +1,8 @@
 #!/bin/bash
 # Stop All Services Script
 
+set -e
+
 echo "============================================================"
 echo "🛑 STOPPING ALL SERVICES"
 echo "============================================================"
@@ -11,9 +13,25 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 cd "$PROJECT_ROOT"
 
-# Stop trading models
-echo "Stopping trading models..."
-python3 scripts/stop_models.py
+# Stop Docker stack if running.
+if docker compose version >/dev/null 2>&1; then
+    COMPOSE_CMD=(docker compose)
+elif command -v docker-compose >/dev/null 2>&1; then
+    COMPOSE_CMD=(docker-compose)
+else
+    COMPOSE_CMD=()
+fi
+
+if [ ${#COMPOSE_CMD[@]} -gt 0 ]; then
+    if "${COMPOSE_CMD[@]}" ps --status running | tail -n +2 | grep -q .; then
+        echo "Stopping Docker containers..."
+        "${COMPOSE_CMD[@]}" down || true
+    fi
+fi
+
+# Stop local model processes if running.
+echo "Stopping local trading models..."
+python3 scripts/stop_models.py || true
 
 # Stop dashboard
 if [ -f data/dashboard_pid.txt ]; then
@@ -22,7 +40,7 @@ if [ -f data/dashboard_pid.txt ]; then
     echo "Stopping dashboard (PID: $DASHBOARD_PID)..."
     
     if ps -p $DASHBOARD_PID > /dev/null; then
-        kill $DASHBOARD_PID
+        kill $DASHBOARD_PID || true
         echo "✅ Dashboard stopped"
     else
         echo "⚠️  Dashboard not running"
@@ -36,7 +54,7 @@ else
     # Try to find and kill by port
     if lsof -Pi :8000 -sTCP:LISTEN -t >/dev/null ; then
         echo "Found dashboard on port 8000, stopping..."
-        kill $(lsof -t -i:8000) 2>/dev/null
+        kill $(lsof -t -i:8000) 2>/dev/null || true
         echo "✅ Dashboard stopped"
     fi
 fi
@@ -46,5 +64,4 @@ echo "============================================================"
 echo "✅ ALL SERVICES STOPPED"
 echo "============================================================"
 echo ""
-
 

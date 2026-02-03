@@ -7,27 +7,28 @@ import sqlite3
 from pathlib import Path
 
 BASE_DIR = Path(__file__).parent.parent
-MODELS = ['conservative', 'moderate', 'aggressive']
+MODELS = ['trader', 'conservative', 'moderate', 'aggressive']
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS trades (
-    id TEXT PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp TEXT NOT NULL,
+    model TEXT NOT NULL,
     market_id TEXT NOT NULL,
-    market_question TEXT NOT NULL,
-    token_id TEXT NOT NULL,
+    market_question TEXT,
     side TEXT NOT NULL,
-    size REAL NOT NULL,
-    price REAL NOT NULL,
-    value_usd REAL NOT NULL,
-    pnl REAL DEFAULT 0,
-    status TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    metadata TEXT
+    entry_price REAL NOT NULL,
+    size_usd REAL NOT NULL,
+    shares REAL NOT NULL,
+    status TEXT DEFAULT 'open',
+    exit_price REAL,
+    exit_timestamp TEXT,
+    pnl REAL,
+    notes TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_status ON trades(status);
-CREATE INDEX IF NOT EXISTS idx_created_at ON trades(created_at);
+CREATE INDEX IF NOT EXISTS idx_timestamp ON trades(timestamp);
 CREATE INDEX IF NOT EXISTS idx_market_id ON trades(market_id);
 """
 
@@ -66,5 +67,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-
 

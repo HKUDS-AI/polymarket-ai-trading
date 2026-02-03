@@ -35,6 +35,11 @@ def get_model_stats(model_name: str) -> dict:
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
+        # Pick the timestamp column used by this DB schema.
+        cursor.execute("PRAGMA table_info(trades)")
+        columns = {row[1] for row in cursor.fetchall()}
+        date_col = 'timestamp' if 'timestamp' in columns else 'created_at'
+
         # Total stats
         cursor.execute("""
             SELECT 
@@ -46,7 +51,7 @@ def get_model_stats(model_name: str) -> dict:
                 MAX(pnl) as best_trade,
                 MIN(pnl) as worst_trade
             FROM trades
-            WHERE status = 'CLOSED'
+            WHERE LOWER(status) = 'closed'
         """)
         
         row = cursor.fetchone()
@@ -60,12 +65,12 @@ def get_model_stats(model_name: str) -> dict:
         
         # Today's stats
         today = datetime.now().date()
-        cursor.execute("""
+        cursor.execute(f"""
             SELECT 
                 COUNT(*) as today_trades,
                 SUM(pnl) as today_pnl
             FROM trades
-            WHERE DATE(created_at) = ? AND status = 'CLOSED'
+            WHERE DATE({date_col}) = ? AND LOWER(status) = 'closed'
         """, (today,))
         
         row = cursor.fetchone()
@@ -74,7 +79,7 @@ def get_model_stats(model_name: str) -> dict:
         
         # Open positions
         cursor.execute("""
-            SELECT COUNT(*) FROM trades WHERE status = 'OPEN'
+            SELECT COUNT(*) FROM trades WHERE LOWER(status) = 'open'
         """)
         open_positions = cursor.fetchone()[0] or 0
         
@@ -239,5 +244,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-
 

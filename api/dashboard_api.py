@@ -214,7 +214,7 @@ async def positions():
         result.append({
             **pos,
             'current': current,
-            'pnl_pct': round(pnl_pct, 1) if pnl_pct else None
+            'pnl_pct': round(pnl_pct, 1) if pnl_pct is not None else None
         })
     
     return {'positions': result}

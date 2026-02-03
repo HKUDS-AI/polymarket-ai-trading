@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # Conservative Model
   conservative:
@@ -12,7 +10,7 @@ services:
       - ./config:/app/config
     environment:
       - MODEL_NAME=conservative
-      - POLYGON_WALLET_PRIVATE_KEY=${POLYGON_WALLET_PRIVATE_KEY:-}
+      - POLYGON_PRIVATE_KEY=${POLYGON_PRIVATE_KEY:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
     command: >
       python3 agents/systematic_trader.py 
@@ -37,7 +35,7 @@ services:
       - ./config:/app/config
     environment:
       - MODEL_NAME=moderate
-      - POLYGON_WALLET_PRIVATE_KEY=${POLYGON_WALLET_PRIVATE_KEY:-}
+      - POLYGON_PRIVATE_KEY=${POLYGON_PRIVATE_KEY:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
     command: >
       python3 agents/systematic_trader.py 
@@ -62,7 +60,7 @@ services:
       - ./config:/app/config
     environment:
       - MODEL_NAME=aggressive
-      - POLYGON_WALLET_PRIVATE_KEY=${POLYGON_WALLET_PRIVATE_KEY:-}
+      - POLYGON_PRIVATE_KEY=${POLYGON_PRIVATE_KEY:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
     command: >
       python3 agents/systematic_trader.py 
@@ -108,5 +106,3 @@ networks:
 volumes:
   data:
   logs:
-
-
