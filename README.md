@@ -135,7 +135,7 @@ All models run in **paper mode** - no real capital deployed.
 1. **Clone the repository**
 
 ```bash
-git clone https://github.com/b1rdmania/polymarket-ai-trading.git
+git clone https://github.com/HKUDS-AI/polymarket-ai-trading.git
 cd polymarket-ai-trading
 ```
 
@@ -178,7 +178,7 @@ Open `http://localhost:8000` in your browser.
 1. **Quick Deploy**:
    - Go to [dashboard.render.com](https://dashboard.render.com)
    - Click "New +" → "Blueprint"
-   - Connect GitHub: `b1rdmania/polymarket-ai-trading`
+   - Connect GitHub: `HKUDS-AI/polymarket-ai-trading`
    - Add environment variable: `OPENAI_API_KEY=sk-...`
    - Click "Apply"
 
@@ -378,10 +378,11 @@ Built on research and insights from:
 
 ## 🔗 Links
 
-- **GitHub**: [github.com/b1rdmania/polymarket-ai-trading](https://github.com/b1rdmania/polymarket-ai-trading)
+- **Repository (canonical)**: [github.com/HKUDS-AI/polymarket-ai-trading](https://github.com/HKUDS-AI/polymarket-ai-trading)
+- **Organization**: [github.com/HKUDS-AI](https://github.com/HKUDS-AI)
 - **Live Dashboard**: [polymarket-trading-dashboard.vercel.app](https://polymarket-trading-dashboard.vercel.app)
 - **Polymarket**: [polymarket.com](https://polymarket.com)
-- **My GitHub**: [@b1rdmania](https://github.com/b1rdmania)
+- **Original author**: [@b1rdmania](https://github.com/b1rdmania)
 
 ## 📊 Related Projects
 
