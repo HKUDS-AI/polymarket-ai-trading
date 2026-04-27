@@ -1,108 +1,25 @@
 services:
-  # Conservative Model
-  conservative:
+  app:
     build: .
-    container_name: polymarket-conservative
-    restart: unless-stopped
-    volumes:
-      - ./data:/app/data
-      - ./logs:/app/logs
-      - ./config:/app/config
-    environment:
-      - MODEL_NAME=conservative
-      - POLYGON_PRIVATE_KEY=${POLYGON_PRIVATE_KEY:-}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-    command: >
-      python3 agents/systematic_trader.py 
-      --mode paper 
-      --config config/active_conservative.yaml 
-      --model conservative
-    healthcheck:
-      test: ["CMD", "pgrep", "-f", "systematic_trader"]
-      interval: 60s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
-
-  # Moderate Model
-  moderate:
-    build: .
-    container_name: polymarket-moderate
-    restart: unless-stopped
-    volumes:
-      - ./data:/app/data
-      - ./logs:/app/logs
-      - ./config:/app/config
-    environment:
-      - MODEL_NAME=moderate
-      - POLYGON_PRIVATE_KEY=${POLYGON_PRIVATE_KEY:-}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-    command: >
-      python3 agents/systematic_trader.py 
-      --mode paper 
-      --config config/active_moderate.yaml 
-      --model moderate
-    healthcheck:
-      test: ["CMD", "pgrep", "-f", "systematic_trader"]
-      interval: 60s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
-
-  # Aggressive Model
-  aggressive:
-    build: .
-    container_name: polymarket-aggressive
-    restart: unless-stopped
-    volumes:
-      - ./data:/app/data
-      - ./logs:/app/logs
-      - ./config:/app/config
-    environment:
-      - MODEL_NAME=aggressive
-      - POLYGON_PRIVATE_KEY=${POLYGON_PRIVATE_KEY:-}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-    command: >
-      python3 agents/systematic_trader.py 
-      --mode paper 
-      --config config/active_aggressive.yaml 
-      --model aggressive
-    healthcheck:
-      test: ["CMD", "pgrep", "-f", "systematic_trader"]
-      interval: 60s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
-
-  # Dashboard API
-  dashboard:
-    build: .
-    container_name: polymarket-dashboard
+    container_name: polymarket-trading
     restart: unless-stopped
     ports:
       - "8000:8000"
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
-      - ./dashboard:/app/dashboard
+      - ./config:/app/config
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-    command: python3 api/dashboard_api.py
+      - PORT=8000
+    command: ["node", "scripts/start-all.mjs"]
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
-    depends_on:
-      - conservative
-      - moderate
-      - aggressive
+      start_period: 50s
 
 networks:
   default:
     name: polymarket-network
-
-volumes:
-  data:
-  logs:

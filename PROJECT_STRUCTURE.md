@@ -4,42 +4,36 @@ Clean, organized structure for the Polymarket AI Trading System.
 
 ```
 polymarket-ai-trading/
-├── README.md                 # Main project documentation
-├── render.yaml              # Render deployment config
-├── docker-compose.yml       # Local Docker setup
-├── Dockerfile              # Container definition
+├── package.json            # Node.js dependencies & npm scripts
+├── README.md               # Main project documentation
+├── render.yaml             # Render deployment config
+├── docker-compose.yml      # Local Docker (single Node service)
+├── Dockerfile              # Node 20 image
 ├── .env.example            # Environment variable template
 │
-├── agents/                 # Trading agents
-│   └── systematic_trader.py
+├── src/
+│   ├── server.mjs          # Express REST API (dashboard backend)
+│   ├── trader.mjs          # Mean-reversion paper trader
+│   └── lib/                # Shared helpers (db, gamma, quality, paths)
 │
-├── api/                    # Backend API
-│   └── dashboard_api.py    # FastAPI server
-│
-├── config/                 # Trading model configurations
+├── config/                 # Trading model configurations (YAML)
+│   ├── trader.yaml
 │   ├── active_conservative.yaml
 │   ├── active_moderate.yaml
 │   ├── active_aggressive.yaml
 │   └── models.yaml
 │
-├── scripts/                # Utility scripts
-│   ├── start_all.sh       # Render startup script
-│   └── init_databases.py  # Database initialization
-│
-├── toolkit/                # Reusable modules
-│   ├── execution-engine/  # Order execution
-│   ├── mean-reversion/    # Statistical arbitrage
-│   ├── polymarket-data/   # Market data fetching
-│   ├── volatility-alerts/ # Price movement detection
-│   └── whale-tracker/     # Large position monitoring
+├── scripts/
+│   ├── start-all.mjs       # Spawns trader + loads API (main process)
+│   ├── start_all.sh        # Render entry (exec node start-all.mjs)
+│   ├── init-databases.mjs  # SQLite schema for all model DBs
+│   ├── smoke.mjs           # Health check against /api/health
+│   └── emergency-stop.mjs  # Writes data/EMERGENCY_STOP
 │
 ├── research/               # Academic research & papers
 │   ├── berg-rietz-2018-longshots-overconfidence.md
 │   ├── munger-25-biases.md
 │   └── papers/            # PDF research papers
-│
-├── tests/                  # Test suite
-│   └── integration/       # Integration tests
 │
 ├── vercel-frontend/        # Web dashboard
 │   ├── public/
@@ -95,15 +89,16 @@ These are created at runtime and not tracked in git:
 
 ### Entry Points
 
-- **`api/dashboard_api.py`** - Main API server (FastAPI)
-- **`agents/systematic_trader.py`** - Trading agent entry point
-- **`scripts/start_all.sh`** - Render startup (runs all services)
+- **`src/server.mjs`** - REST API (port `PORT` or 8000)
+- **`src/trader.mjs`** - Paper trading loop (see `config/trader.yaml`)
+- **`scripts/start-all.mjs`** - Runs trader + API together (`npm start`)
+- **`scripts/start_all.sh`** - Used by Render/Docker: `exec node scripts/start-all.mjs`
 
 ### Frontend
 
 - **`vercel-frontend/public/index.html`** - Main dashboard
-- Dashboard pages are static HTML with vanilla JS
-- Deployed to Vercel, consumes FastAPI backend
+- Dashboard: static HTML + `public/js/*.js` modules
+- Deployed to Vercel, consumes the Node API
 
 ## Clean Commands
 
@@ -111,12 +106,8 @@ These are created at runtime and not tracked in git:
 # Remove runtime data
 rm -rf data/ logs/ dashboard/
 
-# Remove Python cache
-find . -type d -name "__pycache__" -exec rm -r {} +
-find . -type f -name "*.pyc" -delete
-
-# Remove node modules
-rm -rf vercel-frontend/node_modules
+# Remove node_modules
+rm -rf node_modules
 
 # Full clean (Docker)
 docker compose down -v

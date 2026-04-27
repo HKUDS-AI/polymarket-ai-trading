@@ -196,41 +196,31 @@
 
             <h2>Project Structure</h2>
 
-            <pre>toolkit/
-├── execution-engine/       Core trading infrastructure
-│   ├── orchestrator.py     Main coordinator
-│   ├── executor.py         Trade execution
-│   ├── risk_manager.py     Risk controls
-│   ├── position_sizer.py   Kelly Criterion
-│   ├── paper_trader.py     Simulation mode
-│   └── data_recorder.py    Live data capture
-│
-├── mean-reversion/         Signal generation
-├── volatility-alerts/      Price spike detection
-├── whale-tracker/          Smart money monitoring
-└── polymarket-data/        API client
-
-agents/
-└── systematic_trader.py    Main trading bot
-
-api/
-└── dashboard_api.py        FastAPI backend
+            <pre>src/
+├── server.mjs              Express REST API (port 8000)
+├── trader.mjs              Paper mean-reversion loop
+└── lib/                    db, gamma, quality, paths
 
 config/
+├── trader.yaml
 ├── active_conservative.yaml
 ├── active_moderate.yaml
 └── active_aggressive.yaml
 
 data/
+├── trades_trader.db
 ├── trades_conservative.db
 ├── trades_moderate.db
-├── trades_aggressive.db
-└── recordings_{model}/     Live market data
+└── trades_aggressive.db
 
-vercel-frontend/
-└── public/                 Dashboard pages
+scripts/
+├── start-all.mjs           API + trader
+├── init-databases.mjs
+└── emergency-stop.mjs
 
-docker-compose.yml          Multi-container orchestration</pre>
+vercel-frontend/public/     Static dashboard + js/
+
+package.json                Node 20+ / npm start</pre>
 
             <h2>Trading Loop</h2>
 
@@ -257,7 +247,7 @@ docker-compose.yml          Multi-container orchestration</pre>
                 <li>Drawdown monitoring: Emergency stop at 25% drawdown</li>
                 <li>Slippage limits: Max 2% slippage per trade</li>
                 <li>Paper trading mode: Validate before going live</li>
-                <li>Emergency stop script: <code>scripts/emergency_stop.py</code></li>
+                <li>Emergency stop: <code>npm run emergency-stop</code> (writes <code>data/EMERGENCY_STOP</code>)</li>
             </ul>
 
             <h2>Monitoring</h2>

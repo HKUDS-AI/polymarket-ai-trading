@@ -60,7 +60,7 @@ An AI-powered trading system for Polymarket that:
                   │ HTTP/REST
                   ▼
 ┌─────────────────────────────────────────┐
-│    FastAPI Backend (Port 8000)          │
+│    Node.js API (Port 8000)              │
 │  - /api/models - Model stats            │
 │  - /api/signals/live - Trading signals  │
 │  - /api/quality/* - Market scoring      │
@@ -252,11 +252,12 @@ The web dashboard provides real-time monitoring:
 - **Vector Search**: Semantic similarity search across markets
 
 **Tech Stack:**
-- Frontend: Vanilla JavaScript, modern CSS (dark theme)
-- Backend: FastAPI (Python)
-- Database: SQLite for trade history
-- AI: OpenAI GPT-4o-mini + embeddings (text-embedding-3-small)
-- Deployment: Vercel (frontend) + Docker (backend)
+- Frontend: Vanilla JavaScript (see `vercel-frontend/public`), modern CSS (dark theme)
+- Backend: Node.js 20 + Express (`src/server.mjs`)
+- Trader: Paper mean-reversion loop (`src/trader.mjs`, YAML config in `config/`)
+- Database: SQLite (`data/trades_*.db`) via `better-sqlite3`
+- AI: OpenAI GPT-4o-mini + embeddings (optional; set `OPENAI_API_KEY`)
+- Deployment: Vercel (frontend) + Docker/Render (Node backend, `Dockerfile`)
 
 Dashboard is mobile-responsive and updates in real-time.
 

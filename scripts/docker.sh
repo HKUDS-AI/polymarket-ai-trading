@@ -74,7 +74,7 @@ case "$1" in
 
     smoke)
         echo "🧪 Running smoke tests..."
-        python3 scripts/smoke_test.py --api-url http://localhost:8000
+        SMOKE_API_URL=http://localhost:8000 node scripts/smoke.mjs
         ;;
     
     *)

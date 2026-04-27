@@ -6,20 +6,14 @@ echo "⚡ 24/7 LOCAL TRADING SETUP"
 echo "============================================================"
 echo ""
 
-# Check if models are running
-if ! pgrep -f "systematic_trader.py" > /dev/null; then
-    echo "⚠️  Models not running. Starting them..."
-    cd "$(dirname "$0")/.."
-    python3 scripts/start_models.py
-    sleep 5
-fi
+cd "$(dirname "$0")/.."
 
-# Check if dashboard is running
-if ! lsof -Pi :8000 -sTCP:LISTEN -t >/dev/null 2>&1; then
-    echo "⚠️  Dashboard not running. Starting it..."
-    cd "$(dirname "$0")/.."
-    nohup python3 api/dashboard_api.py > logs/dashboard.log 2>&1 &
-    sleep 3
+# Check if API + trader are running (start-all)
+if ! pgrep -f "start-all.mjs" > /dev/null && ! lsof -Pi :8000 -sTCP:LISTEN -t >/dev/null 2>&1; then
+    echo "⚠️  Stack not running. Starting (node scripts/start-all.mjs)..."
+    mkdir -p logs
+    nohup npm run start > logs/dashboard.log 2>&1 &
+    sleep 5
 fi
 
 # Prevent Mac from sleeping
@@ -57,7 +51,7 @@ echo "  kill $CAFFEINATE_PID"
 echo ""
 echo "Check progress:"
 echo "  open http://localhost:8000"
-echo "  python3 scripts/monitor_models.py"
+echo "  npm run smoke"
 echo ""
 
 

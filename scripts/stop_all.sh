@@ -29,9 +29,11 @@ if [ ${#COMPOSE_CMD[@]} -gt 0 ]; then
     fi
 fi
 
-# Stop local model processes if running.
-echo "Stopping local trading models..."
-python3 scripts/stop_models.py || true
+# Stop local Node trader / API if running.
+echo "Stopping local Node processes (trader + API)..."
+pkill -f "src/trader.mjs" 2>/dev/null || true
+pkill -f "src/server.mjs" 2>/dev/null || true
+pkill -f "scripts/start-all.mjs" 2>/dev/null || true
 
 # Stop dashboard
 if [ -f data/dashboard_pid.txt ]; then
