@@ -1,10 +1,17 @@
 # Polymarket AI Trading System
 
-Quantitative trading system for Polymarket prediction markets, built on 40+ years of prediction market research.
+[![GitHub Org](https://img.shields.io/badge/org-HKUDS--AI-181717?logo=github)](https://github.com/HKUDS-AI)
+[![Node](https://img.shields.io/badge/node-%3E%3D20-brightgreen)](https://nodejs.org)
 
-**🔗 Live Dashboard**: [polymarket-trading-dashboard.vercel.app](https://polymarket-trading-dashboard.vercel.app)
+**Research-driven mean reversion & AI-assisted *paper* trading** for [Polymarket](https://polymarket.com) prediction markets (Berg & Rietz–style longshot/favorite dynamics, optional OpenAI gating, Kelly sizing, SQLite history).
 
-**by [b1rdmania](https://github.com/b1rdmania)**
+| | |
+|---|---|
+| **Repository** | **[github.com/HKUDS-AI/polymarket-ai-trading](https://github.com/HKUDS-AI/polymarket-ai-trading)** |
+| **Live dashboard** | [polymarket-trading-dashboard.vercel.app](https://polymarket-trading-dashboard.vercel.app) |
+| **Stack** | Node.js (Express) · OpenAI · SQLite · static JS dashboard on Vercel |
+
+Originated from work by [b1rdmania](https://github.com/b1rdmania); **maintained by [HKUDS-AI](https://github.com/HKUDS-AI)** · contributions from [@jeanbro7](https://github.com/jeanbro7).
 
 ## 🎯 What This Is
 

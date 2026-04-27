@@ -10,7 +10,8 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+# Python site-packages style (do not use bare "lib/" — it ignores Node src/lib)
+/Lib/
 lib64/
 parts/
 sdist/
@@ -51,9 +52,8 @@ Thumbs.db
 tunnel.log
 cloudflared
 
-# Node modules (for Vercel frontend)
+# Node
 node_modules/
-package-lock.json
 
 # Vercel
 .vercel
